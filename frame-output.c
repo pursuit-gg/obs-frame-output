@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <shlobj.h>
 #include <inttypes.h>
 #include <time.h>
 #include <util/threading.h>
@@ -9,7 +10,7 @@ OBS_DECLARE_MODULE()
 
 struct frame_output_data {
   obs_output_t *output;
-  const char *save_path;
+  char *save_path;
   int quality;
   unsigned width;
   unsigned height;
@@ -23,6 +24,17 @@ static const char *frame_output_name(void *unused)
   return "Frame Capture Output";
 }
 
+static void finish_folder(char *save_path)
+{
+  char fname[MAX_PATH];
+
+  strcpy(fname, save_path);
+  strcat(fname, "/done");
+
+  FILE *f = fopen(fname, "wb");
+  fclose(f);
+}
+
 static void frame_output_update(void *data, obs_data_t *settings)
 {
   struct frame_output_data *output = data;
@@ -30,8 +42,15 @@ static void frame_output_update(void *data, obs_data_t *settings)
   int quality = obs_data_get_int(settings, "quality");
 
   pthread_mutex_lock(&output->write_mutex);
-  if (save_path)
-    output->save_path = save_path;
+  if (save_path) {
+    if (output->save_path) {
+      finish_folder(output->save_path);
+    }
+    char *new_save_path = bzalloc(sizeof(char) * MAX_PATH);
+    strcpy(new_save_path, save_path);
+    bfree(output->save_path);
+    output->save_path = new_save_path;
+  }
   if (quality)
     output->quality = quality;
   pthread_mutex_unlock(&output->write_mutex);
@@ -84,6 +103,7 @@ static void frame_output_stop(void *data, uint64_t ts)
   pthread_mutex_lock(&output->write_mutex);
   if (output->active) {
     obs_output_end_data_capture(output->output);
+    finish_folder(output->save_path);
     output->active = false;
   }
   pthread_mutex_unlock(&output->write_mutex);
@@ -110,10 +130,11 @@ static void frame_output_destroy(void *data)
   struct frame_output_data *output = data;
   frame_output_stop(output, 0);
   pthread_mutex_destroy(&output->write_mutex);
+  bfree(output->save_path);
   bfree(output);
 }
 
-static void generate_filename(char *fname, const char *save_path) {
+static void generate_filename(char *fname, char *save_path) {
   time_t rawtime;
   struct tm * timeinfo;
   char timestring[18];
@@ -129,7 +150,7 @@ static void generate_filename(char *fname, const char *save_path) {
   strcat(fname, ".jpeg");
 }
 
-static void save_frame(struct video_data *frame, unsigned width, unsigned height, int quality, const char *fname)
+static void save_frame(struct video_data *frame, unsigned width, unsigned height, int quality, char *fname)
 {
   FILE *f = fopen(fname, "wb");
 
@@ -172,7 +193,7 @@ static void frame_output_video(void *data, struct video_data *frame)
 {
   struct frame_output_data *output = data;
 
-  char fname[1024];
+  char fname[MAX_PATH];
   pthread_mutex_lock(&output->write_mutex);
   generate_filename(fname, output->save_path);
   save_frame(frame, output->width, output->height, output->quality, fname);
