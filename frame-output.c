@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <shlobj.h>
 #include <inttypes.h>
-#include <time.h>
 #include <util/threading.h>
 #include <obs-module.h>
 #include <libjpeg/jpeglib.h>
@@ -135,15 +134,11 @@ static void frame_output_destroy(void *data)
 }
 
 static void generate_filename(char *fname, char *save_path) {
-  time_t rawtime;
-  struct tm * timeinfo;
+  SYSTEMTIME systemtime;
   char timestring[18];
+  GetSystemTime(&systemtime);
 
-  time(&rawtime);
-  timeinfo = gmtime(&rawtime);
-
-  sprintf(timestring, "%04d%02d%02d%02d%02d%02d%03d", timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, 0);
-
+  sprintf(timestring, "%04d%02d%02d%02d%02d%02d%03d", systemtime.wYear, systemtime.wMonth, systemtime.wDay, systemtime.wHour, systemtime.wMinute, systemtime.wSecond, systemtime.wMilliseconds);
   strcpy(fname, save_path);
   strcat(fname, "/");
   strcat(fname, timestring);
