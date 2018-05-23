@@ -27,11 +27,13 @@ static void finish_folder(char *save_path)
 {
   char fname[MAX_PATH];
 
-  strcpy(fname, save_path);
-  strcat(fname, "/done");
+  if (save_path) {
+    strcpy(fname, save_path);
+    strcat(fname, "/done");
 
-  FILE *f = fopen(fname, "wb");
-  fclose(f);
+    FILE *f = fopen(fname, "wb");
+    fclose(f);
+  }
 }
 
 static void frame_output_update(void *data, obs_data_t *settings)
@@ -42,9 +44,7 @@ static void frame_output_update(void *data, obs_data_t *settings)
 
   pthread_mutex_lock(&output->write_mutex);
   if (save_path) {
-    if (output->save_path) {
-      finish_folder(output->save_path);
-    }
+    finish_folder(output->save_path);
     char *new_save_path = bzalloc(sizeof(char) * MAX_PATH);
     strcpy(new_save_path, save_path);
     bfree(output->save_path);
@@ -127,10 +127,13 @@ static void *frame_output_create(obs_data_t *settings, obs_output_t *output)
 static void frame_output_destroy(void *data)
 {
   struct frame_output_data *output = data;
-  frame_output_stop(output, 0);
-  pthread_mutex_destroy(&output->write_mutex);
-  bfree(output->save_path);
-  bfree(output);
+
+  if (output) {
+    frame_output_stop(output, 0);
+    pthread_mutex_destroy(&output->write_mutex);
+    bfree(output->save_path);
+    bfree(output);
+  }
 }
 
 static void generate_filename(char *fname, char *save_path) {
