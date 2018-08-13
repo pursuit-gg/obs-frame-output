@@ -217,7 +217,7 @@ static void frame_output_video(void *data, struct video_data *frame)
   GetSystemTime(&systemtime);
 
   pthread_mutex_lock(&output->write_mutex);
-  if (output->current_folder == NULL || output->frame_count == 60) {
+  if (output->current_folder == NULL || output->frame_count >= 15) {
     finish_folder(output->current_folder, output->save_path);
     wchar_t *folder = bzalloc(sizeof(wchar_t) * 18);
     generate_folder(systemtime, folder, output->save_path);
